@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"sync"
 
@@ -13,23 +14,23 @@ import (
 )
 
 type WebSocketRegistry struct {
-	Conn        map[string]*websocket.Conn
+	Conn        map[int]*websocket.Conn
 	RegistryLoc sync.RWMutex
 }
 
 func NewWebSocketRegistry() *WebSocketRegistry {
 	return &WebSocketRegistry{
-		Conn: make(map[string]*websocket.Conn),
+		Conn: make(map[int]*websocket.Conn),
 	}
 }
 
-func (r *WebSocketRegistry) Register(driverID string, conn *websocket.Conn) {
+func (r *WebSocketRegistry) Register(driverID int, conn *websocket.Conn) {
 	r.RegistryLoc.Lock()
 	defer r.RegistryLoc.Unlock()
 	r.Conn[driverID] = conn
 }
 
-func (r *WebSocketRegistry) Unregister(driverID string) {
+func (r *WebSocketRegistry) Unregister(driverID int) {
 	r.RegistryLoc.Lock()
 	defer r.RegistryLoc.Unlock()
 	delete(r.Conn, driverID)
@@ -52,7 +53,8 @@ var (
 )
 
 func handleDriverConnections(ws *websocket.Conn) {
-	driverID := "1"
+
+	driverID := rand.Intn(101)
 
 	registry.Register(driverID, ws)
 
