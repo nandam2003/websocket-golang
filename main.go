@@ -83,11 +83,9 @@ func handleDriverConnections(c *gin.Context) {
 
 func requestRaid(c *gin.Context) {
 	var request struct {
-		Flat      string `json:"f_lat"`
-		Flong     string `json:"f_long"`
-		Tlat      string `json:"t_lat"`
-		Tlong     string `json:"t_long"`
-		TotalDist string `json:"total_dist"`
+		PickUp      string `json:"pick_up"`
+		Destination string `json:"destination"`
+		TotalDist   string `json:"total_dist"`
 	}
 	if err := c.BindJSON(&request); err != nil {
 		print(err)
@@ -96,7 +94,7 @@ func requestRaid(c *gin.Context) {
 	}
 	json, err := json.Marshal(request)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unable to convert the data into json"})
 		return
 	}
 	registry.Broadcast(json)
