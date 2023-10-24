@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"golang.org/x/net/websocket"
+	"github.com/gorilla/websocket"
 )
 
 type WebSocketRegistry struct {
@@ -40,7 +40,7 @@ func (r *WebSocketRegistry) Broadcast(message []byte) {
 	r.RegistryLoc.RLock()
 	defer r.RegistryLoc.RUnlock()
 	for _, conn := range r.Conn {
-		_, err := conn.Write(message)
+		err := conn.WriteMessage(websocket.TextMessage, message)
 		if err != nil {
 			log.Printf("Error broadcasting message: %v", err)
 		}
@@ -50,13 +50,27 @@ func (r *WebSocketRegistry) Broadcast(message []byte) {
 
 var (
 	registry = NewWebSocketRegistry()
+	upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool {
+			// Allow all origins
+			return true
+		},
+	}
 )
 
-func handleDriverConnections(ws *websocket.Conn) {
+func handleDriverConnections(c *gin.Context) {
+
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	driverID := rand.Intn(101)
 
-	registry.Register(driverID, ws)
+	registry.Register(driverID, conn)
 
 	defer func() {
 		registry.Unregister(driverID)
@@ -104,16 +118,10 @@ func main() {
 	r.Use(cors.New(config))
 
 	r.POST("/raid", requestRaid)
-	http.Handle("/ws", websocket.Handler(handleDriverConnections))
+	r.GET("/ws", handleDriverConnections)
 
 	go func() {
-		if err := http.ListenAndServe(":8080", nil); err != nil {
-			fmt.Println("API server error:", err)
-		}
-	}()
-
-	go func() {
-		if err := r.Run(":3000"); err != nil {
+		if err := r.Run(); err != nil {
 			fmt.Println("API server error:", err)
 		}
 	}()
